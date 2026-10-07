@@ -1,6 +1,6 @@
 # SPEC 01 - Cuatro fantasmas con comportamientos diferenciados
 
-**Estado:** Approved
+**Estado:** Implemented
 **Dependencias:** Ninguna
 **Fecha:** 2026-10-07
 **Objetivo:** Añadir 4 fantasmas con nombres clásicos, cada uno con comportamiento propio (uno agresivo que persigue posición actual), con colores distintos y manteniendo la colisión actual.
