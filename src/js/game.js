@@ -13,6 +13,12 @@ const OPPOSITE = { left: 'right', right: 'left', up: 'down', down: 'up' };
 const PACMAN_SPEED = 0.125; // 1/8 celda/frame -> alinea cada 8 frames
 const GHOST_SPEED = 0.1;    // 1/10 celda/frame
 
+// Retardo de liberacion por kind (frames, ~60 fps -> clasico 0/2/4/6 s).
+const RELEASE_DELAYS = { blinky: 0, pinky: 120, inky: 240, clyde: 360 };
+
+// Columna de la puerta por la que sube cada fantasma para salir de la casa.
+const EXIT_COLS = { blinky: 13, pinky: 13, inky: 14, clyde: 14 };
+
 // Crea una partida nueva. Copia MAZE (pristino) a game.grid para poder comer
 // dots sin destruir el original, y reiniciar.
 function createGame() {
@@ -42,6 +48,9 @@ function createGame() {
       dir: 'up',
       speed: GHOST_SPEED,
       kind: g.kind,
+      phase: 'waiting',            // 'waiting' | 'exiting' | 'free'
+      releaseIn: RELEASE_DELAYS[ g.kind ],
+      bobBase: g.y,                // celda de reposo del bobbing dentro de la casa
     } ) ),
   };
 }
