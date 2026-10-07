@@ -19,6 +19,10 @@ const RELEASE_DELAYS = { blinky: 0, pinky: 120, inky: 240, clyde: 360 };
 // Columna de la puerta por la que sube cada fantasma para salir de la casa.
 const EXIT_COLS = { blinky: 13, pinky: 13, inky: 14, clyde: 14 };
 
+// Bobbing de espera dentro de la casa: y = bobBase + sin(frame * BOB_T) * BOB_AMP.
+const BOB_T = 0.2;    // frecuencia (rad/frame)
+const BOB_AMP = 0.4;  // amplitud en celdas
+
 // Crea una partida nueva. Copia MAZE (pristino) a game.grid para poder comer
 // dots sin destruir el original, y reiniciar.
 function createGame() {
@@ -34,6 +38,7 @@ function createGame() {
     score: 0,
     lives: 3,
     dotsRemaining: dots,
+    frame: 0,
     grid,
     pacman: {
       x: PACMAN_START.x,
@@ -218,6 +223,18 @@ function moveGhost( game, g ) {
   const grid = game.grid;
   const width = grid[ 0 ].length;
 
+  if ( g.phase === 'waiting' ) {
+    g.releaseIn--;
+    if ( g.releaseIn <= 0 ) {
+      g.phase = 'exiting';
+      return;
+    }
+    // Bobbing: oscila sobre bobBase sin decidir direccion.
+    g.x = Math.round( g.x );
+    g.y = g.bobBase + Math.sin( game.frame * BOB_T ) * BOB_AMP;
+    return;
+  }
+
   if ( aligned( g.x ) && aligned( g.y ) ) {
     g.x = Math.round( g.x );
     g.y = Math.round( g.y );
@@ -249,6 +266,7 @@ function collides( a, b ) {
 }
 
 function update( game ) {
+  game.frame++;
   movePacman( game );
   game.ghosts.forEach( ( g ) => moveGhost( game, g ) );
 
