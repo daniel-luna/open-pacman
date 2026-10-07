@@ -110,6 +110,46 @@ function movePacman( game ) {
   wrapTunnel( p, width );
 }
 
+function getTargetCell( game, g ) {
+  const p = game.pacman;
+  if ( g.kind === 'blinky' ) {
+    return { x: Math.round( p.x ), y: Math.round( p.y ) };
+  }
+  if ( g.kind === 'pinky' ) {
+    const dir = DIRS[ p.dir ] || { x: 1, y: 0 };
+    let tx = Math.round( p.x ) + dir.x * 2;
+    let ty = Math.round( p.y ) + dir.y * 2;
+    const grid = game.grid;
+    const width = grid[ 0 ].length;
+    const height = grid.length;
+    if ( tx < 0 ) tx = 0;
+    if ( tx >= width ) tx = width - 1;
+    if ( ty < 0 ) ty = 0;
+    if ( ty >= height ) ty = height - 1;
+    return { x: tx, y: ty };
+  }
+  if ( g.kind === 'inky' ) {
+    // Patrulla: alterna entre dos waypoints fijos
+    if ( !g.waypoint ) g.waypoint = 0;
+    const waypoints = [
+      { x: 6, y: 5 },
+      { x: 21, y: 5 },
+    ];
+    const target = waypoints[ g.waypoint % waypoints.length ];
+    // Cambia cuando está alineado en la celda objetivo
+    if ( aligned( g.x ) && aligned( g.y ) ) {
+      const gx = Math.round( g.x );
+      const gy = Math.round( g.y );
+      if ( gx === target.x && gy === target.y ) {
+        g.waypoint = ( g.waypoint + 1 ) % waypoints.length;
+      }
+    }
+    return waypoints[ g.waypoint % waypoints.length ];
+  }
+  // clyde: no usado para target directo
+  return { x: Math.round( p.x ), y: Math.round( p.y ) };
+}
+
 function decideGhost( game, g ) {
   const grid = game.grid;
   const p = game.pacman;
@@ -120,6 +160,30 @@ function decideGhost( game, g ) {
   // Sin salida (callejon): permitir el giro de 180.
   const choices = options.length ? options : [ '' + OPPOSITE[ g.dir ] ];
 
+  if ( g.kind === 'clyde' ) {
+    g.dir = choices[ Math.floor( Math.random() * choices.length ) ];
+    return;
+  }
+
+  if ( g.kind === 'blinky' || g.kind === 'pinky' || g.kind === 'inky' ) {
+    const target = getTargetCell( game, g );
+    let best = choices[ 0 ];
+    let bestDist = Infinity;
+    for ( const dir of choices ) {
+      const d = DIRS[ dir ];
+      const nx = g.x + d.x;
+      const ny = g.y + d.y;
+      const dist = Math.abs( nx - target.x ) + Math.abs( ny - target.y );
+      if ( dist < bestDist ) {
+        bestDist = dist;
+        best = dir;
+      }
+    }
+    g.dir = best;
+    return;
+  }
+
+  // Compatibilidad con valores antiguos si los hubiera
   if ( g.kind === 'hunter' ) {
     const px = Math.round( p.x );
     const py = Math.round( p.y );
