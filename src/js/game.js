@@ -13,6 +13,16 @@ const OPPOSITE = { left: 'right', right: 'left', up: 'down', down: 'up' };
 const PACMAN_SPEED = 0.125; // 1/8 celda/frame -> alinea cada 8 frames
 const GHOST_SPEED = 0.1;    // 1/10 celda/frame
 
+// Retardo de liberacion por kind (frames, ~60 fps -> clasico 0/2/4/6 s).
+const RELEASE_DELAYS = { blinky: 0, pinky: 120, inky: 240, clyde: 360 };
+
+// Columna de la puerta por la que sube cada fantasma para salir de la casa.
+const EXIT_COLS = { blinky: 13, pinky: 13, inky: 14, clyde: 14 };
+
+// Bobbing de espera dentro de la casa: y = bobBase + sin(frame * BOB_T) * BOB_AMP.
+const BOB_T = 0.2;    // frecuencia (rad/frame)
+const BOB_AMP = 0.4;  // amplitud en celdas
+
 // Crea una partida nueva. Copia MAZE (pristino) a game.grid para poder comer
 // dots sin destruir el original, y reiniciar.
 function createGame() {
@@ -28,6 +38,7 @@ function createGame() {
     score: 0,
     lives: 3,
     dotsRemaining: dots,
+    frame: 0,
     grid,
     pacman: {
       x: PACMAN_START.x,
@@ -42,6 +53,9 @@ function createGame() {
       dir: 'up',
       speed: GHOST_SPEED,
       kind: g.kind,
+      phase: 'waiting',            // 'waiting' | 'exiting' | 'free'
+      releaseIn: RELEASE_DELAYS[ g.kind ],
+      bobBase: g.y,                // celda de reposo del bobbing dentro de la casa
     } ) ),
   };
 }
@@ -52,25 +66,26 @@ function aligned( v ) {
 
 // Una celda es muro para el actor dado?
 //   pacman: bloqueado por pared (1) y puerta (3)
-//   ghost:  bloqueado solo por pared (1)
-function isWall( grid, x, y, actor ) {
+//   ghost:  bloqueado por pared (1) y puerta (3) salvo during exiting
+//   (throughDoor=true) mientras atraviesa la puerta en la salida guiada.
+function isWall( grid, x, y, actor, throughDoor ) {
   if ( y < 0 || y >= grid.length ) return true;
   if ( x < 0 || x >= grid[ 0 ].length ) return true;
   const v = grid[ y ][ x ];
   if ( v === 1 ) return true;
-  if ( v === 3 && actor === 'pacman' ) return true;
+  if ( v === 3 && ( actor === 'pacman' || ( actor === 'ghost' && !throughDoor ) ) ) return true;
   return false;
 }
 
 // Puede el actor avanzar desde (x,y) en la direccion dir?
-function canMove( grid, x, y, dir, actor ) {
+function canMove( grid, x, y, dir, actor, throughDoor ) {
   const d = DIRS[ dir ];
   if ( !d ) return false;
   const tx = x + d.x;
   const ty = y + d.y;
   // Tunel: salir por un borde en la fila del tunel siempre es valido.
   if ( ty === TUNNEL_ROW && ( tx < 0 || tx >= grid[ 0 ].length ) ) return true;
-  return !isWall( grid, tx, ty, actor );
+  return !isWall( grid, tx, ty, actor, throughDoor );
 }
 
 function wrapTunnel( a, width ) {
@@ -205,9 +220,57 @@ function decideGhost( game, g ) {
   }
 }
 
+// Paso guiado de salida (solo cuando el fantasma esta alineado a celda).
+// Ruta: ir a EXIT_COLS[kind], subir por la puerta (y=12) hasta y=11 y quedar free.
+function exitGhostStep( game, g ) {
+  // Snap a celda entera: evita el error de coma flotante (0.1*10 == 13.0000002)
+  // que haria al fantasma rebotar entre columnas.
+  g.x = Math.round( g.x );
+  g.y = Math.round( g.y );
+  const col = EXIT_COLS[ g.kind ];
+  if ( g.x !== col ) {
+    g.dir = g.x < col ? 'right' : 'left';
+    return;
+  }
+  if ( g.y > 11 ) {
+    g.dir = 'up';
+    return;
+  }
+  g.x = col;
+  g.y = 11;
+  g.phase = 'free';
+  decideGhost( game, g );
+}
+
 function moveGhost( game, g ) {
   const grid = game.grid;
   const width = grid[ 0 ].length;
+
+  if ( g.phase === 'waiting' ) {
+    g.releaseIn--;
+    if ( g.releaseIn <= 0 ) {
+      g.phase = 'exiting';
+      // Snap a celda entera para arrancar la salida sin medio-pixel.
+      g.x = Math.round( g.x );
+      g.y = Math.round( g.y );
+      return;
+    }
+    // Bobbing: oscila sobre bobBase sin decidir direccion.
+    g.x = Math.round( g.x );
+    g.y = g.bobBase + Math.sin( game.frame * BOB_T ) * BOB_AMP;
+    return;
+  }
+
+  if ( g.phase === 'exiting' ) {
+    if ( aligned( g.x ) && aligned( g.y ) ) {
+      exitGhostStep( game, g );
+      if ( g.phase === 'free' ) return;
+    }
+    const d = DIRS[ g.dir ];
+    g.x += d.x * g.speed;
+    g.y += d.y * g.speed;
+    return;
+  }
 
   if ( aligned( g.x ) && aligned( g.y ) ) {
     g.x = Math.round( g.x );
@@ -232,6 +295,10 @@ function resetPositions( game ) {
     g.x = GHOST_STARTS[ i ].x;
     g.y = GHOST_STARTS[ i ].y;
     g.dir = 'up';
+    // Reinicia la cola de salida tras perder vida.
+    g.phase = 'waiting';
+    g.releaseIn = RELEASE_DELAYS[ g.kind ];
+    g.bobBase = g.y;
   } );
 }
 
@@ -240,6 +307,7 @@ function collides( a, b ) {
 }
 
 function update( game ) {
+  game.frame++;
   movePacman( game );
   game.ghosts.forEach( ( g ) => moveGhost( game, g ) );
 
