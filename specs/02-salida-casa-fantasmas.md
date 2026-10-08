@@ -1,6 +1,6 @@
 # SPEC 02 − Salida fluida de la casa de los fantasmas
 
-**Estado:** Approved
+**Estado:** Implemented
 **Dependencias:** SPEC 01
 **Fecha:** 2026-10-07
 **Objetivo:** Hacer fluida la salida de los cuatro fantasmas desde su casa: cada uno espera su turno, sale guiado en línea recta por la puerta y, una vez fuera, no reentra.
