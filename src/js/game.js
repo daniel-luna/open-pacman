@@ -191,6 +191,12 @@ function decideGhost( game, g ) {
   // Sin salida (callejon): permitir el giro de 180.
   const choices = options.length ? options : [ '' + OPPOSITE[ g.dir ] ];
 
+  // Poder activo: fantasma asustado, elige direccion aleatoria (clásico).
+  if ( game.powerFramesLeft > 0 ) {
+    g.dir = choices[ Math.floor( Math.random() * choices.length ) ];
+    return;
+  }
+
   if ( g.kind === 'clyde' ) {
     g.dir = choices[ Math.floor( Math.random() * choices.length ) ];
     return;

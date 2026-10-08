@@ -153,6 +153,19 @@ const GHOST_COLOR_MAP = {
   clyde:  '#ffb852',
 };
 
+const FRIGHT_COLOR = '#4d4dff';
+
+// Color del fantasma segun el estado del poder. En los 2 s finales
+// (powerFramesLeft <= 120) parpadea a blanco; el temporizador no se corta.
+function ghostColor( game, g ) {
+  if ( game.powerFramesLeft > 0 ) {
+    const blink =
+      game.powerFramesLeft <= 120 && Math.floor( game.powerFramesLeft / 15 ) % 2 === 1;
+    return blink ? '#ffffff' : FRIGHT_COLOR;
+  }
+  return GHOST_COLOR_MAP[ g.kind ] || '#ff0000';
+}
+
 function draw( ctx, game, frame ) {
   const grid = game.grid;
   const W = grid[ 0 ].length;
@@ -165,7 +178,7 @@ function draw( ctx, game, frame ) {
   drawDoor( ctx, grid );
   drawDots( ctx, grid );
   drawPacman( ctx, game.pacman, frame );
-  game.ghosts.forEach( ( g ) => drawGhost( ctx, g, GHOST_COLOR_MAP[ g.kind ] || '#ff0000' ) );
+  game.ghosts.forEach( ( g ) => drawGhost( ctx, g, ghostColor( game, g ) ) );
   drawHUD( ctx, game, W );
 }
 
