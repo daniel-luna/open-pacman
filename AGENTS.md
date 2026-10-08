@@ -30,7 +30,7 @@ Vanilla JS/HTML/CSS Pac-Man clone. The repo exists to practice spec-driven devel
 
 ## Game invariants
 
-- Tile codes: `0` empty, `1` wall, `2` dot, `3` ghost-house door. Pacman is blocked by wall + door; ghosts by wall only.
+- Tile codes: `0` empty, `1` wall, `2` dot, `3` ghost-house door, `4` power pellet. Pacman is blocked by wall + door; ghosts by wall only.
 - Cell (x, y), origin top-left; `TUNNEL_ROW = 14` wraps actors horizontally.
 - Movement is in cells/frame (pacman 1/8, ghost 1/10) and only changes direction when `aligned()` (on a cell center). Keep that pattern for any new actor.
 - Ghost `kind`: `hunter` (greedy toward Pacman) vs `random`. Decisions happen in `decideGhost()`.
