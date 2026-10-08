@@ -334,16 +334,32 @@ function update( game ) {
   movePacman( game );
   game.ghosts.forEach( ( g ) => moveGhost( game, g ) );
 
-  for ( const g of game.ghosts ) {
-    if ( collides( game.pacman, g ) ) {
-      game.lives--;
-      if ( game.lives <= 0 ) {
-        game.state = 'lost';
-        return;
-      }
-      resetPositions( game );
-      break;
+  for ( let i = 0; i < game.ghosts.length; i++ ) {
+    const g = game.ghosts[ i ];
+    if ( !collides( game.pacman, g ) ) continue;
+
+    // Poder activo: comer fantasma en lugar de perder vida.
+    if ( game.powerFramesLeft > 0 ) {
+      game.score += GHOST_SCORES[ Math.min( game.ghostCombo, GHOST_SCORES.length - 1 ) ];
+      game.ghostCombo++;
+      // Teletransporte a su celda de la casa y repite la cola de salida.
+      const start = GHOST_STARTS[ i ];
+      g.x = start.x;
+      g.y = start.y;
+      g.dir = 'up';
+      g.phase = 'waiting';
+      g.releaseIn = RESPAWN_WAIT;
+      g.bobBase = start.y;
+      continue;
     }
+
+    game.lives--;
+    if ( game.lives <= 0 ) {
+      game.state = 'lost';
+      return;
+    }
+    resetPositions( game );
+    break;
   }
 
   if ( game.dotsRemaining <= 0 ) game.state = 'won';
