@@ -1,6 +1,6 @@
 # SPEC 03 - Power pellets en las esquinas
 
-**Estado:** Approved
+**Estado:** Implemented
 **Dependencias:** SPEC 01, SPEC 02
 **Fecha:** 2026-10-08
 **Objetivo:** Añadir una power pellet en cada esquina que vuelva a Pacman invencible durante 8 segundos para comerse a los fantasmas, los cuales se pintan azul claro, se mueven aleatoriamente y recuperan su estado normal al acabar el tiempo.
