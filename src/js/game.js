@@ -219,6 +219,24 @@ function decideGhost( game, g ) {
   }
 }
 
+// Paso guiado de salida (solo cuando el fantasma esta alineado a celda).
+// Ruta: ir a EXIT_COLS[kind], subir por la puerta (y=12) hasta y=11 y quedar free.
+function exitGhostStep( game, g ) {
+  const col = EXIT_COLS[ g.kind ];
+  if ( g.x !== col ) {
+    g.dir = g.x < col ? 'right' : 'left';
+    return;
+  }
+  if ( g.y > 11 ) {
+    g.dir = 'up';
+    return;
+  }
+  g.x = col;
+  g.y = 11;
+  g.phase = 'free';
+  decideGhost( game, g );
+}
+
 function moveGhost( game, g ) {
   const grid = game.grid;
   const width = grid[ 0 ].length;
@@ -227,11 +245,25 @@ function moveGhost( game, g ) {
     g.releaseIn--;
     if ( g.releaseIn <= 0 ) {
       g.phase = 'exiting';
+      // Snap a celda entera para arrancar la salida sin medio-pixel.
+      g.x = Math.round( g.x );
+      g.y = Math.round( g.y );
       return;
     }
     // Bobbing: oscila sobre bobBase sin decidir direccion.
     g.x = Math.round( g.x );
     g.y = g.bobBase + Math.sin( game.frame * BOB_T ) * BOB_AMP;
+    return;
+  }
+
+  if ( g.phase === 'exiting' ) {
+    if ( aligned( g.x ) && aligned( g.y ) ) {
+      exitGhostStep( game, g );
+      if ( g.phase === 'free' ) return;
+    }
+    const d = DIRS[ g.dir ];
+    g.x += d.x * g.speed;
+    g.y += d.y * g.speed;
     return;
   }
 
