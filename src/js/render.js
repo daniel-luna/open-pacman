@@ -70,10 +70,12 @@ function drawDots( ctx, grid ) {
   ctx.fillStyle = DOT_COLOR;
   for ( let y = 0; y < grid.length; y++ ) {
     for ( let x = 0; x < grid[ 0 ].length; x++ ) {
-      if ( grid[ y ][ x ] !== 2 ) continue;
+      const v = grid[ y ][ x ];
+      if ( v !== 2 && v !== 4 ) continue;
       const { cx, cy } = cellCenter( x, y );
       ctx.beginPath();
-      ctx.arc( cx, cy, 2.5, 0, Math.PI * 2 );
+      // Power pellet (4): bola mas grande que el dot (2).
+      ctx.arc( cx, cy, v === 4 ? 6 : 2.5, 0, Math.PI * 2 );
       ctx.fill();
     }
   }
@@ -151,6 +153,19 @@ const GHOST_COLOR_MAP = {
   clyde:  '#ffb852',
 };
 
+const FRIGHT_COLOR = '#4d4dff';
+
+// Color del fantasma segun el estado del poder. En los 2 s finales
+// (powerFramesLeft <= 120) parpadea a blanco; el temporizador no se corta.
+function ghostColor( game, g ) {
+  if ( game.powerFramesLeft > 0 ) {
+    const blink =
+      game.powerFramesLeft <= 120 && Math.floor( game.powerFramesLeft / 15 ) % 2 === 1;
+    return blink ? '#ffffff' : FRIGHT_COLOR;
+  }
+  return GHOST_COLOR_MAP[ g.kind ] || '#ff0000';
+}
+
 function draw( ctx, game, frame ) {
   const grid = game.grid;
   const W = grid[ 0 ].length;
@@ -163,7 +178,7 @@ function draw( ctx, game, frame ) {
   drawDoor( ctx, grid );
   drawDots( ctx, grid );
   drawPacman( ctx, game.pacman, frame );
-  game.ghosts.forEach( ( g ) => drawGhost( ctx, g, GHOST_COLOR_MAP[ g.kind ] || '#ff0000' ) );
+  game.ghosts.forEach( ( g ) => drawGhost( ctx, g, ghostColor( game, g ) ) );
   drawHUD( ctx, game, W );
 }
 

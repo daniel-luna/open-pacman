@@ -19,6 +19,11 @@ const RELEASE_DELAYS = { blinky: 0, pinky: 120, inky: 240, clyde: 360 };
 // Columna de la puerta por la que sube cada fantasma para salir de la casa.
 const EXIT_COLS = { blinky: 13, pinky: 13, inky: 14, clyde: 14 };
 
+// Poder de las power pellets.
+const POWER_FRAMES = 480;              // 8 s a 60 fps
+const GHOST_SCORES = [ 200, 400, 800, 1600 ]; // combo por fantasma comido (tope 1600)
+const RESPAWN_WAIT = 90;               // frames en casa tras ser comido (~1,5 s)
+
 // Bobbing de espera dentro de la casa: y = bobBase + sin(frame * BOB_T) * BOB_AMP.
 const BOB_T = 0.2;    // frecuencia (rad/frame)
 const BOB_AMP = 0.4;  // amplitud en celdas
@@ -31,7 +36,8 @@ function createGame() {
   grid[ PACMAN_START.y ][ PACMAN_START.x ] = 0;
 
   let dots = 0;
-  for ( const row of grid ) for ( const v of row ) if ( v === 2 ) dots++;
+  // Cuenta dots (2) y power pellets (4): ambos cuentan para la victoria.
+  for ( const row of grid ) for ( const v of row ) if ( v === 2 || v === 4 ) dots++;
 
   return {
     state: 'start',
@@ -39,6 +45,8 @@ function createGame() {
     lives: 3,
     dotsRemaining: dots,
     frame: 0,
+    powerFramesLeft: 0,                // frames de poder restantes (0 = sin poder)
+    ghostCombo: 0,                     // fantasmas comidos en el poder actual
     grid,
     pacman: {
       x: PACMAN_START.x,
@@ -115,6 +123,14 @@ function movePacman( game ) {
       game.score += 10;
       game.dotsRemaining--;
     }
+    // Comer power pellet: activa el poder y reinicia temporizador y combo.
+    if ( grid[ p.y ][ p.x ] === 4 ) {
+      grid[ p.y ][ p.x ] = 0;
+      game.score += 50;
+      game.dotsRemaining--;
+      game.powerFramesLeft = POWER_FRAMES;
+      game.ghostCombo = 0;
+    }
     // Si no puede seguir, se detiene en la celda.
     if ( !canMove( grid, p.x, p.y, p.dir, 'pacman' ) ) return;
   }
@@ -174,6 +190,12 @@ function decideGhost( game, g ) {
   );
   // Sin salida (callejon): permitir el giro de 180.
   const choices = options.length ? options : [ '' + OPPOSITE[ g.dir ] ];
+
+  // Poder activo: fantasma asustado, elige direccion aleatoria (clásico).
+  if ( game.powerFramesLeft > 0 ) {
+    g.dir = choices[ Math.floor( Math.random() * choices.length ) ];
+    return;
+  }
 
   if ( g.kind === 'clyde' ) {
     g.dir = choices[ Math.floor( Math.random() * choices.length ) ];
@@ -291,6 +313,9 @@ function resetPositions( game ) {
   p.y = PACMAN_START.y;
   p.dir = 'left';
   p.nextDir = null;
+  // Perder una vida corta el poder: color e IA normales al renacer.
+  game.powerFramesLeft = 0;
+  game.ghostCombo = 0;
   game.ghosts.forEach( ( g, i ) => {
     g.x = GHOST_STARTS[ i ].x;
     g.y = GHOST_STARTS[ i ].y;
@@ -308,19 +333,36 @@ function collides( a, b ) {
 
 function update( game ) {
   game.frame++;
+  if ( game.powerFramesLeft > 0 ) game.powerFramesLeft--;
   movePacman( game );
   game.ghosts.forEach( ( g ) => moveGhost( game, g ) );
 
-  for ( const g of game.ghosts ) {
-    if ( collides( game.pacman, g ) ) {
-      game.lives--;
-      if ( game.lives <= 0 ) {
-        game.state = 'lost';
-        return;
-      }
-      resetPositions( game );
-      break;
+  for ( let i = 0; i < game.ghosts.length; i++ ) {
+    const g = game.ghosts[ i ];
+    if ( !collides( game.pacman, g ) ) continue;
+
+    // Poder activo: comer fantasma en lugar de perder vida.
+    if ( game.powerFramesLeft > 0 ) {
+      game.score += GHOST_SCORES[ Math.min( game.ghostCombo, GHOST_SCORES.length - 1 ) ];
+      game.ghostCombo++;
+      // Teletransporte a su celda de la casa y repite la cola de salida.
+      const start = GHOST_STARTS[ i ];
+      g.x = start.x;
+      g.y = start.y;
+      g.dir = 'up';
+      g.phase = 'waiting';
+      g.releaseIn = RESPAWN_WAIT;
+      g.bobBase = start.y;
+      continue;
     }
+
+    game.lives--;
+    if ( game.lives <= 0 ) {
+      game.state = 'lost';
+      return;
+    }
+    resetPositions( game );
+    break;
   }
 
   if ( game.dotsRemaining <= 0 ) game.state = 'won';
