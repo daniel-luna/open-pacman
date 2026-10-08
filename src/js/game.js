@@ -223,6 +223,10 @@ function decideGhost( game, g ) {
 // Paso guiado de salida (solo cuando el fantasma esta alineado a celda).
 // Ruta: ir a EXIT_COLS[kind], subir por la puerta (y=12) hasta y=11 y quedar free.
 function exitGhostStep( game, g ) {
+  // Snap a celda entera: evita el error de coma flotante (0.1*10 == 13.0000002)
+  // que haria al fantasma rebotar entre columnas.
+  g.x = Math.round( g.x );
+  g.y = Math.round( g.y );
   const col = EXIT_COLS[ g.kind ];
   if ( g.x !== col ) {
     g.dir = g.x < col ? 'right' : 'left';
@@ -291,6 +295,10 @@ function resetPositions( game ) {
     g.x = GHOST_STARTS[ i ].x;
     g.y = GHOST_STARTS[ i ].y;
     g.dir = 'up';
+    // Reinicia la cola de salida tras perder vida.
+    g.phase = 'waiting';
+    g.releaseIn = RELEASE_DELAYS[ g.kind ];
+    g.bobBase = g.y;
   } );
 }
 
